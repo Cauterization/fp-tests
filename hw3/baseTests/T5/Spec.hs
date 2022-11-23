@@ -421,12 +421,7 @@ prop_basic_eval_cases =
    "fold(mul, [11, 22, 33])" `evaluates_to_num` 7986    &&
    "fold(div, [11, 22, 33])" `evaluates_to_num` (1%66)  &&
    "length([1, true, \"Hello\"])"  `evaluates_to_num` 3 &&
-   "reverse([1, true, \"Hello\"])" `evaluates_to_list`
-      [
-        HiValueString (Text.pack "Hello"),
-        HiValueBool True,
-        HiValueNumber 1
-      ] &&
+   "reverse([1, true, \"Hello\"])" `evaluates_to_list` [ HiValueString (Text.pack "Hello"),HiValueBool True,HiValueNumber 1] &&
    "[1, 2] + [3, 4, 5]" `evaluates_to_list_num` [1, 2, 3, 4, 5] &&
    "[0, \"x\"] * 3" `evaluates_to_list`
       [

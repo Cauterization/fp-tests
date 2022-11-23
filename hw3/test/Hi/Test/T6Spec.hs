@@ -9,6 +9,9 @@ import Data.Text
 import Hi.Test.Common
 import Numeric (showHex)
 
+import Control.Monad (when)
+import Data.String
+
 spec :: Spec
 spec = do
   describe "bytes" $ do
@@ -61,6 +64,7 @@ spec = do
         err -> annotate (show err) >> failure
     it "decode-utf8 . encode-utf8 === id" $ hedgehog $ do
       s :: String <- forAll $ Gen.string (Range.linear 1 100) Gen.unicode
+      when (testEval ("decode-utf8(encode-utf8(" ++ show s ++ "))") /= Ok (show s)) $ error $ s <> "\n" <> show s
       testEval ("decode-utf8(encode-utf8(" ++ show s ++ "))") === Ok (show s)
     it "list operations" $ do
       "[# ab cd #] + [# 10 10 #]" ~=?? Ok "[# ab cd 10 10 #]"

@@ -288,7 +288,7 @@ bytes_lit_parse_case bs =
 
 showBytesLit :: [Word8] -> String
 showBytesLit bs =
-    "[#" ++ foldr (\n s -> showByte n . (' ':) . s) id bs "#]"
+    "[# " ++ foldr (\n s -> showByte n . (' ':) . s) id bs "#]"
   where
     showByte n = showHex (n `quot` 16) . showHex (n `rem` 16)
 

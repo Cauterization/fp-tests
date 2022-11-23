@@ -1,15 +1,15 @@
-module HW3.Base
-  ( HiError (..)
-  , HiExpr (..)
-  , HiFun (..)
-  , HiMonad (..)
-  , HiValue (..)
-  ) where
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 
+module HW3.Base where
+
+import qualified Codec.Serialise as Serialise
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import Data.Sequence
+import GHC.Generics
 
-data HiFun
+data HiFun -- function names (e.g. div, sort, length, ...)
 
   = HiFunDiv --p7 l
   | HiFunMul --p7 l
@@ -33,9 +33,27 @@ data HiFun
   | HiFunReverse
   | HiFunTrim
 
-  deriving (Show, Eq, Ord)
+  | HiFunList
+  | HiFunRange
+  | HiFunFold
 
-data HiValue
+  | HiFunPackBytes
+  | HiFunUnpackBytes
+  | HiFunEncodeUtf8
+  | HiFunDecodeUtf8
+  | HiFunZip
+  | HiFunUnzip
+  | HiFunSerialise
+  | HiFunDeserialise
+
+  | HiFunRead
+  | HiFunWrite
+  | HiFunMkDir
+  | HiFunChDir
+
+  deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
+
+data HiValue -- values (numbers, booleans, strings, ...)
   = HiValueNumber Rational
   | HiValueFunction HiFun
 
@@ -44,14 +62,21 @@ data HiValue
   | HiValueNull
   | HiValueString Text
 
-  deriving (Show, Eq, Ord)
+  | HiValueList (Seq HiValue)
 
-data HiExpr
+  | HiValueBytes ByteString
+
+  | HiValueAction HiAction
+
+  deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
+
+data HiExpr -- expressions (literals, function calls, ...)
   = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
-  deriving (Show, Eq, Ord)
+  | HiExprRun HiExpr
+  deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
-data HiError
+data HiError -- evaluation errors (invalid arguments, ...)
   = HiErrorInvalidArgument
   | HiErrorInvalidFunction
   | HiErrorArityMismatch
@@ -64,7 +89,7 @@ data HiAction =
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
   | HiActionCwd
-
+  deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 class Monad m => HiMonad m where
   runAction :: HiAction -> m HiValue

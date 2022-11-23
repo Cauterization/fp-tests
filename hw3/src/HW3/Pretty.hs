@@ -1,10 +1,115 @@
-module HW3.Pretty
-  ( prettyValue
-  ) where
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TypeApplications #-}
 
-import HW3.Base (HiValue)
-import Prettyprinter (Doc)
-import Prettyprinter.Render.Terminal (AnsiStyle)
+module HW3.Pretty where
+
+import           HW3.Base
+import           HW3.Evaluator
+import           Prettyprinter 
+import           Prettyprinter.Render.Terminal 
+import qualified Data.Text as Text
+import Data.Ratio
+import qualified Data.Sequence as Sequence
+import Data.Scientific
+import Data.Foldable
+import Numeric
+import Data.String
+import qualified Data.ByteString as ByteString
+import Data.Char
+import Data.List
 
 prettyValue :: HiValue -> Doc AnsiStyle
-prettyValue = undefined
+prettyValue = \case
+
+    HiValueBool True  -> "true"
+
+    HiValueBool False -> "false"
+
+    HiValueNumber num   -> case fromRationalRepetendUnlimited num of
+        (n, Nothing) -> case floatingOrInteger @_ @Integer n of
+            Right i -> pretty i
+            Left f -> pretty $ showFFloat Nothing f ""
+        _            -> let n = numerator num
+                            d = denominator num
+                            (q,r) = quotRem n d
+                        in if
+            | abs n < abs d -> showDoc n <>  "/"  <> showDoc d
+            | n > 0         -> showDoc q <> " + " <> showDoc r       <> "/" <> showDoc (abs d)
+            | otherwise     -> showDoc q <> " - " <> showDoc (abs r) <> "/" <> showDoc (abs d)
+  
+    HiValueFunction f -> case f of
+        HiFunDiv            -> "div"       
+        HiFunMul            -> "mul"       
+        HiFunAdd            -> "add"       
+        HiFunSub            -> "sub"   
+        HiFunNot            -> "not"      
+        HiFunAnd            -> "and"       
+        HiFunOr             -> "or"   
+        HiFunLessThan       -> "less-than"           
+        HiFunGreaterThan    -> "greater-than"               
+        HiFunEquals         -> "equals"         
+        HiFunNotLessThan    -> "not-less-than"               
+        HiFunNotGreaterThan -> "not-greater-than"                  
+        HiFunNotEquals      -> "not-equals"             
+        HiFunIf             -> "if"     
+        HiFunLength         -> "length"         
+        HiFunToUpper        -> "to-upper"          
+        HiFunToLower        -> "to-lower"          
+        HiFunReverse        -> "reverse"          
+        HiFunTrim           -> "trim"      
+        HiFunList           -> "list"
+        HiFunRange          -> "range"
+        HiFunFold           -> "fold"
+        HiFunPackBytes      -> "pack-bytes"      
+        HiFunUnpackBytes    -> "unpack-bytes"       
+        HiFunEncodeUtf8     -> "encode-utf8"     
+        HiFunDecodeUtf8     -> "decode-utf8"     
+        HiFunZip            -> "zip"    
+        HiFunUnzip          -> "unzip"  
+        HiFunSerialise      -> "serialise"   
+        HiFunDeserialise    -> "deserialise"
+        -- HiFunRead           -> "read"  
+        -- HiFunWrite          -> "write"   
+        -- HiFunMkDir          -> "mkdir"   
+        -- HiFunChDir          -> "cd"   
+        -- HiFunParseTime      -> "parse-time"
+        -- HiFunRand           -> "rand"
+        -- HiFunEcho           -> "echo"
+        -- HiFunCount          -> "count"  
+        -- HiFunKeys           -> "keys" 
+        -- HiFunValues         -> "values"     
+        -- HiFunInvert         -> "invert"    
+            
+    HiValueNull       -> "null"
+            
+    HiValueString t   -> pretty $ show t
+
+    HiValueList l   -> if Sequence.null l
+        then "[ ]"
+        else "[ " <> (mconcat $ toList $ Sequence.intersperse ", " $ prettyValue <$> l) <> " ]"
+
+    HiValueBytes ""  -> "[# #]" 
+    HiValueBytes b   -> let render b = if b < 16 then "0" <> showHex b "" else showHex b ""
+                        in  pretty $ "[# " 
+                         <> (foldl (\ini b -> ini <> render b <> " ") "" (map fromIntegral $ ByteString.unpack b))
+                         <> "#]"
+                        -- in  "[# " <+> (map (pretty . render . fromIntegral) (ByteString.unpack b)) <+> " #]"
+
+    _ -> undefined  
+    -- HiValueAction a -> renderAction a
+                    
+    -- HiValueBytes "" -> "[# #]"
+    -- HiValueBytes bs -> mconcat ["[# ", renderBytes bs, " #]"]
+                    
+    -- HiValueTime t   -> mconcat ["parse-time(\"", pretty $ show t, "\")"]
+                    
+    -- HiValueDict d   -> case M.toList d of
+    --     []     -> "{ }"
+    --     (x:xs) -> mconcat ["{ ", foldl (\ini y -> ini <> ", " <> renderPair y) (renderPair x) $ xs, " }"]
+
+showDoc :: Show a => a -> Doc AnsiStyle
+showDoc = fromString . show
+
+-- DELTE THES LATER
