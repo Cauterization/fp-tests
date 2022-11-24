@@ -15,6 +15,7 @@ import qualified Data.ByteString as ByteString
 import System.IO
 import Data.Functor (($>))
 import qualified Data.Time as Time
+import System.Random (randomRIO)
 
 data HiPermission =
     AllowRead
@@ -57,6 +58,8 @@ instance HiMonad HIO where
         HiActionMkDir f -> withRequirements [AllowWrite] $ HiValueNull <$ createDirectoryIfMissing False f
 
         HiActionNow -> withRequirements [AllowTime] $ HiValueTime <$> Time.getCurrentTime
+
+        HiActionRand l r -> withRequirements [] $ HiValueNumber . fromIntegral <$> randomRIO (l, r)
 
         -- _ -> undefined
 

@@ -86,8 +86,8 @@ operatorTable =
         ]
     ]
 
-binary :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
-binary assoc name = mkBinary assoc (string name)
+-- binary :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
+-- binary assoc name = mkBinary assoc (string name)
 
 binary' :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
 binary' assoc name = mkBinary assoc (try $ (string name) <* notFollowedBy (string "="))
@@ -187,6 +187,9 @@ pFun = HiValueFunction <$> choice
 
     -- time
     , HiFunParseTime     <$ string "parse-time"
+
+    --rand
+    , HiFunRand          <$ string "rand"
     ]
 
 pBool :: Parser HiValue

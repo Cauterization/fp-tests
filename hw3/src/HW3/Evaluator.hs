@@ -3,6 +3,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TypeApplications #-}
 
 module HW3.Evaluator where
 
@@ -59,7 +60,15 @@ evalT = \case
 
     HiExprValue val -> return val
 
+    -- run
+
     HiExprRun exp -> evalT exp >>= \case
+        -- HiValueAction a@(HiActionRand l u) -> if
+        --         | l == u -> return $ HiValueNumber $ fromIntegral l
+        --         | max (abs l) (abs u) > 1234567898765432122 -> throwError $ HiErrorInvalidArgument
+        --         | otherwise -> runAction a
+        -- HiValueAction a@(HiActionRand l r) -> if
+        --     | any (> (maxBound @Int)) [l, r] -> undefined
         HiValueAction a -> runAction a 
         _               -> throwError HiErrorInvalidArgument
 
@@ -263,6 +272,17 @@ evalT = \case
 
     FApp HiFunParseTime args -> traverse evalT args >>= \case
         [HiValueString s] -> return $ maybe HiValueNull HiValueTime (readMaybe $ Text.unpack s)
+        _           -> throwError HiErrorInvalidArgument 
+
+    -- rand
+
+    FApp HiFunRand args -> traverse evalT args >>= \case
+        [NVal l, NVal r] -> do
+            li <- readHiInt l
+            ri <- readHiInt r
+            when (max ri li > fromIntegral (maxBound @Int) || min ri li < fromIntegral (minBound @Int)) $ throwError HiErrorInvalidArgument
+            return $ HiValueAction $ HiActionRand (fromInteger li) (fromInteger ri)
+
         _           -> throwError HiErrorInvalidArgument 
 
     -- FApp x y -> error "asd"

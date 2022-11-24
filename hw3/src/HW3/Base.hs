@@ -54,6 +54,8 @@ data HiFun -- function names (e.g. div, sort, length, ...)
 
   | HiFunParseTime
 
+  | HiFunRand
+
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiValue -- values (numbers, booleans, strings, ...)
@@ -94,7 +96,10 @@ data HiAction =
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
   | HiActionCwd
+
   | HiActionNow
+  
+  | HiActionRand Int Int
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 class Monad m => HiMonad m where

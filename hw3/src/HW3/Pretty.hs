@@ -75,7 +75,7 @@ prettyValue = \case
         HiFunMkDir          -> "mkdir"   
         HiFunChDir          -> "cd"   
         HiFunParseTime      -> "parse-time"
-        -- HiFunRand           -> "rand"
+        HiFunRand           -> "rand"
         -- HiFunEcho           -> "echo"
         -- HiFunCount          -> "count"  
         -- HiFunKeys           -> "keys" 
@@ -99,11 +99,8 @@ prettyValue = \case
         HiActionChDir fp    -> pretty $ "cd(" <> show fp <> ")"
         HiActionCwd         -> "cwd"
         HiActionNow         -> "now"
-        -- HiActionRand  a b   -> ["rand(", pretty a, ", ", pretty b, ")"]
+        HiActionRand  a b   -> pretty $ "rand(" <> show a <> ", " <> show b <> ")"
         -- HiActionEcho  t     -> ["echo", "(\"", pretty t, "\")"]      
-                    
-    -- HiValueBytes "" -> "[# #]"
-    -- HiValueBytes bs -> mconcat ["[# ", renderBytes bs, " #]"]
                     
     HiValueTime t   -> "parse-time(" <> pretty (show (show t)) <> ")"
                     
