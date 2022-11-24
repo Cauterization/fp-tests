@@ -121,7 +121,7 @@ evalT = \case
         le <- evalT l
         case le of
             HiValueBool False -> return $ HiValueBool False
-            HiValueNull       -> return $ HiValueBool False
+            HiValueNull       -> return $ HiValueNull
             _                 -> evalT r
 
     FApp HiFunOr       [l, r] -> do
@@ -284,6 +284,12 @@ evalT = \case
             return $ HiValueAction $ HiActionRand (fromInteger li) (fromInteger ri)
 
         _           -> throwError HiErrorInvalidArgument 
+
+    -- echo
+
+    FApp HiFunEcho args -> traverse evalT args >>= \case
+        [HiValueString s] -> return $ HiValueAction $ HiActionEcho s
+        _                 -> throwError HiErrorInvalidArgument 
 
     -- FApp x y -> error "asd"
 

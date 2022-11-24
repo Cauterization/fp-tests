@@ -56,6 +56,8 @@ data HiFun -- function names (e.g. div, sort, length, ...)
 
   | HiFunRand
 
+  | HiFunEcho
+
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiValue -- values (numbers, booleans, strings, ...)
@@ -100,6 +102,8 @@ data HiAction =
   | HiActionNow
   
   | HiActionRand Int Int
+
+  | HiActionEcho Text
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 class Monad m => HiMonad m where

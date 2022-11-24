@@ -16,6 +16,7 @@ import System.IO
 import Data.Functor (($>))
 import qualified Data.Time as Time
 import System.Random (randomRIO)
+import qualified Data.Text.IO as Text
 
 data HiPermission =
     AllowRead
@@ -35,7 +36,8 @@ instance HiMonad HIO where
         
         HiActionCwd -> withRequirements [AllowRead] $ do
             cd <- getCurrentDirectory
-            (HiValueString . Text.pack . concat) <$> listDirectory cd
+            -- (HiValueString . Text.pack . concat) <$> listDirectory cd
+            return $ HiValueString $ Text.pack cd
 
         HiActionChDir d -> withRequirements [AllowRead] $ HiValueNull <$ do
             setCurrentDirectory d 
@@ -60,6 +62,8 @@ instance HiMonad HIO where
         HiActionNow -> withRequirements [AllowTime] $ HiValueTime <$> Time.getCurrentTime
 
         HiActionRand l r -> withRequirements [] $ HiValueNumber . fromIntegral <$> randomRIO (l, r)
+
+        HiActionEcho s -> withRequirements [AllowWrite] $ HiValueNull <$ Text.putStrLn s
 
         -- _ -> undefined
 

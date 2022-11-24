@@ -76,7 +76,7 @@ prettyValue = \case
         HiFunChDir          -> "cd"   
         HiFunParseTime      -> "parse-time"
         HiFunRand           -> "rand"
-        -- HiFunEcho           -> "echo"
+        HiFunEcho           -> "echo"
         -- HiFunCount          -> "count"  
         -- HiFunKeys           -> "keys" 
         -- HiFunValues         -> "values"     
@@ -100,7 +100,7 @@ prettyValue = \case
         HiActionCwd         -> "cwd"
         HiActionNow         -> "now"
         HiActionRand  a b   -> pretty $ "rand(" <> show a <> ", " <> show b <> ")"
-        -- HiActionEcho  t     -> ["echo", "(\"", pretty t, "\")"]      
+        HiActionEcho  t     -> pretty $ "echo(" <> show t <> ")"
                     
     HiValueTime t   -> "parse-time(" <> pretty (show (show t)) <> ")"
                     
@@ -114,8 +114,8 @@ renderByteString :: ByteString.ByteString -> Doc AnsiStyle
 renderByteString "" = "[# #]" 
 renderByteString bs = pretty $ "[# " <> str <> "#]"
     where 
-        render b = if b < 16 then "0" <> showHex b "" else showHex b ""
         str = foldl (\ini b -> ini <> render b <> " ") "" (map fromIntegral $ ByteString.unpack bs)
+        render b = if b < 16 then "0" <> showHex b "" else showHex b ""
 
 showDoc :: Show a => a -> Doc AnsiStyle
 showDoc = fromString . show

@@ -190,6 +190,9 @@ pFun = HiValueFunction <$> choice
 
     --rand
     , HiFunRand          <$ string "rand"
+
+    -- echo
+    , HiFunEcho          <$ string "echo"
     ]
 
 pBool :: Parser HiValue
