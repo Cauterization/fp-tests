@@ -14,10 +14,12 @@ import System.Directory
 import qualified Data.ByteString as ByteString
 import System.IO
 import Data.Functor (($>))
+import qualified Data.Time as Time
 
 data HiPermission =
     AllowRead
   | AllowWrite
+  | AllowTime
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data PermissionException =
@@ -54,7 +56,9 @@ instance HiMonad HIO where
 
         HiActionMkDir f -> withRequirements [AllowWrite] $ HiValueNull <$ createDirectoryIfMissing False f
 
-        _ -> undefined
+        HiActionNow -> withRequirements [AllowTime] $ HiValueTime <$> Time.getCurrentTime
+
+        -- _ -> undefined
 
 withRequirements :: [HiPermission] -> IO a -> HIO a
 withRequirements perms action = HIO $ \allowed -> do

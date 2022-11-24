@@ -22,6 +22,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import HW3.Utils
 import qualified Data.Sequence as Sequence
+import Text.Read (readMaybe)
+import qualified Data.Time as Time
 
 type EvalT m a = ExceptT HiError m a
 
@@ -89,6 +91,7 @@ evalT = \case
 
     FApp HiFunSub       [l, r] -> (,) <$> evalT l <*> evalT r >>= \case 
         (NVal l, NVal r) -> return $ HiValueNumber $ l - r
+        (HiValueTime   l, HiValueTime r) -> return $ HiValueNumber $ toRational $ Time.diffUTCTime l r
         _                -> throwError HiErrorInvalidArgument
 
     FApp HiFunAdd      [l, r] -> (,) <$> evalT l <*> evalT r >>= \case 
@@ -97,6 +100,7 @@ evalT = \case
         (SVal l, SVal r) -> return $ HiValueString $ l <> r
         (HiValueList l, HiValueList r) -> return $ HiValueList $ l <> r
         (HiValueBytes l, HiValueBytes r) -> return $ HiValueBytes $ l <> r
+        (HiValueTime  t, HiValueNumber n) -> return $ HiValueTime $ Time.addUTCTime (realToFrac n) t
         _                -> throwError HiErrorInvalidArgument
 
     -- booleans
@@ -255,6 +259,12 @@ evalT = \case
         [SVal fp] -> return $ HiValueAction $ HiActionChDir (Text.unpack fp)
         _                 -> throwError HiErrorInvalidArgument
 
+    -- time
+
+    FApp HiFunParseTime args -> traverse evalT args >>= \case
+        [HiValueString s] -> return $ maybe HiValueNull HiValueTime (readMaybe $ Text.unpack s)
+        _           -> throwError HiErrorInvalidArgument 
+
     -- FApp x y -> error "asd"
 
     FApp _ _             -> throwError HiErrorArityMismatch
@@ -335,10 +345,10 @@ evalContainer c args = traverse evalT args >>= \case
 -- unpackBytesHex :: ByteString.ByteString -> [Int]
 -- unpackBytesHex = map ord . ByteString.unpack
 
-unpackBytesDec :: C8ByteString.ByteString -> [Int]
-unpackBytesDec = f . C8ByteString.unpack
-    where f (a:b:rest) = (fst $ head $ readHex [a,b]) : f rest
-          f _          = []
+-- unpackBytesDec :: C8ByteString.ByteString -> [Int]
+-- unpackBytesDec = f . C8ByteString.unpack
+--     where f (a:b:rest) = (fst $ head $ readHex [a,b]) : f rest
+--           f _          = []
 
 compress :: C8ByteString.ByteString -> C8ByteString.ByteString
 compress = LByteString.toStrict 

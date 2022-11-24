@@ -110,7 +110,7 @@ pValue = choice
     ]
 
 pAction :: Parser HiValue
-pAction = HiValueAction <$> (HiActionCwd <$ string "cwd") -- <|> HiActionNow <$ "now"
+pAction = fmap HiValueAction $ (HiActionCwd <$ string "cwd") <|> (HiActionNow <$ string "now")
 
 pBytes :: Parser HiValue
 pBytes = fmap HiValueBytes $ (<|> emptyBytes) $ try $ between (string "[#") (string "#]") $ do
@@ -184,6 +184,9 @@ pFun = HiValueFunction <$> choice
     , HiFunWrite         <$ string "write"
     , HiFunMkDir         <$ string "mkdir"
     , HiFunChDir         <$ string "cd"
+
+    -- time
+    , HiFunParseTime     <$ string "parse-time"
     ]
 
 pBool :: Parser HiValue

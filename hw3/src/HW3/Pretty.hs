@@ -74,7 +74,7 @@ prettyValue = \case
         HiFunWrite          -> "write"   
         HiFunMkDir          -> "mkdir"   
         HiFunChDir          -> "cd"   
-        -- HiFunParseTime      -> "parse-time"
+        HiFunParseTime      -> "parse-time"
         -- HiFunRand           -> "rand"
         -- HiFunEcho           -> "echo"
         -- HiFunCount          -> "count"  
@@ -98,14 +98,14 @@ prettyValue = \case
         HiActionMkDir fp    -> pretty $ "mkdir(" <> show fp <> ")"
         HiActionChDir fp    -> pretty $ "cd(" <> show fp <> ")"
         HiActionCwd         -> "cwd"
-        -- HiActionNow         -> ["now"]
+        HiActionNow         -> "now"
         -- HiActionRand  a b   -> ["rand(", pretty a, ", ", pretty b, ")"]
         -- HiActionEcho  t     -> ["echo", "(\"", pretty t, "\")"]      
                     
     -- HiValueBytes "" -> "[# #]"
     -- HiValueBytes bs -> mconcat ["[# ", renderBytes bs, " #]"]
                     
-    -- HiValueTime t   -> mconcat ["parse-time(\"", pretty $ show t, "\")"]
+    HiValueTime t   -> "parse-time(" <> pretty (show (show t)) <> ")"
                     
     -- HiValueDict d   -> case M.toList d of
     --     []     -> "{ }"
@@ -120,8 +120,5 @@ renderByteString bs = pretty $ "[# " <> str <> "#]"
         render b = if b < 16 then "0" <> showHex b "" else showHex b ""
         str = foldl (\ini b -> ini <> render b <> " ") "" (map fromIntegral $ ByteString.unpack bs)
 
-
 showDoc :: Show a => a -> Doc AnsiStyle
 showDoc = fromString . show
-
--- DELTE THES LATER

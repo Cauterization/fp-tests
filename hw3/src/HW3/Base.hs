@@ -6,6 +6,7 @@ module HW3.Base where
 import qualified Codec.Serialise as Serialise
 import Data.ByteString (ByteString)
 import Data.Text (Text)
+import qualified Data.Time as Time
 import Data.Sequence
 import GHC.Generics
 
@@ -51,6 +52,8 @@ data HiFun -- function names (e.g. div, sort, length, ...)
   | HiFunMkDir
   | HiFunChDir
 
+  | HiFunParseTime
+
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiValue -- values (numbers, booleans, strings, ...)
@@ -67,6 +70,8 @@ data HiValue -- values (numbers, booleans, strings, ...)
   | HiValueBytes ByteString
 
   | HiValueAction HiAction
+
+  | HiValueTime Time.UTCTime
 
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
@@ -89,6 +94,7 @@ data HiAction =
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
   | HiActionCwd
+  | HiActionNow
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 class Monad m => HiMonad m where
