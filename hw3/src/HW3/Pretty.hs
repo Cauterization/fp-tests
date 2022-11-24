@@ -70,10 +70,10 @@ prettyValue = \case
         HiFunUnzip          -> "unzip"  
         HiFunSerialise      -> "serialise"   
         HiFunDeserialise    -> "deserialise"
-        -- HiFunRead           -> "read"  
-        -- HiFunWrite          -> "write"   
-        -- HiFunMkDir          -> "mkdir"   
-        -- HiFunChDir          -> "cd"   
+        HiFunRead           -> "read"  
+        HiFunWrite          -> "write"   
+        HiFunMkDir          -> "mkdir"   
+        HiFunChDir          -> "cd"   
         -- HiFunParseTime      -> "parse-time"
         -- HiFunRand           -> "rand"
         -- HiFunEcho           -> "echo"
@@ -90,15 +90,17 @@ prettyValue = \case
         then "[ ]"
         else "[ " <> (mconcat $ toList $ Sequence.intersperse ", " $ prettyValue <$> l) <> " ]"
 
-    HiValueBytes ""  -> "[# #]" 
-    HiValueBytes b   -> let render b = if b < 16 then "0" <> showHex b "" else showHex b ""
-                        in  pretty $ "[# " 
-                         <> (foldl (\ini b -> ini <> render b <> " ") "" (map fromIntegral $ ByteString.unpack b))
-                         <> "#]"
-                        -- in  "[# " <+> (map (pretty . render . fromIntegral) (ByteString.unpack b)) <+> " #]"
+    HiValueBytes bs -> renderByteString bs
 
-    _ -> undefined  
-    -- HiValueAction a -> renderAction a
+    HiValueAction a -> case a of
+        HiActionRead  fp    -> pretty $ "read(" <> show fp <> ")"
+        HiActionWrite fp bs -> pretty ("write(" <> show fp <> ", ") <> renderByteString bs <> ")"
+        HiActionMkDir fp    -> pretty $ "mkdir(" <> show fp <> ")"
+        HiActionChDir fp    -> pretty $ "cd(" <> show fp <> ")"
+        HiActionCwd         -> "cwd"
+        -- HiActionNow         -> ["now"]
+        -- HiActionRand  a b   -> ["rand(", pretty a, ", ", pretty b, ")"]
+        -- HiActionEcho  t     -> ["echo", "(\"", pretty t, "\")"]      
                     
     -- HiValueBytes "" -> "[# #]"
     -- HiValueBytes bs -> mconcat ["[# ", renderBytes bs, " #]"]
@@ -108,6 +110,16 @@ prettyValue = \case
     -- HiValueDict d   -> case M.toList d of
     --     []     -> "{ }"
     --     (x:xs) -> mconcat ["{ ", foldl (\ini y -> ini <> ", " <> renderPair y) (renderPair x) $ xs, " }"]
+
+    x -> error $ show x  
+
+renderByteString :: ByteString.ByteString -> Doc AnsiStyle
+renderByteString "" = "[# #]" 
+renderByteString bs = pretty $ "[# " <> str <> "#]"
+    where 
+        render b = if b < 16 then "0" <> showHex b "" else showHex b ""
+        str = foldl (\ini b -> ini <> render b <> " ") "" (map fromIntegral $ ByteString.unpack bs)
+
 
 showDoc :: Show a => a -> Doc AnsiStyle
 showDoc = fromString . show

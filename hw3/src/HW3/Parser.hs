@@ -37,7 +37,7 @@ cleanSpaces _     ('#':']':xs) = '#' : ']' : cleanSpaces False xs
 
 -- cleanSpaces False (' '   :xs) =     cleanSpaces False   xs
 
-cleanSpaces False ('\\' : 'n'   :xs) = cleanSpaces False xs
+cleanSpaces False ('\\' : 'n' :xs) = cleanSpaces False xs
 cleanSpaces False (' '   :xs) = cleanSpaces False xs
 cleanSpaces False (x     :xs) = x : cleanSpaces False xs
 cleanSpaces True  (x     :xs) = x : cleanSpaces True xs
@@ -114,14 +114,14 @@ pAction = HiValueAction <$> (HiActionCwd <$ string "cwd") -- <|> HiActionNow <$ 
 
 pBytes :: Parser HiValue
 pBytes = fmap HiValueBytes $ (<|> emptyBytes) $ try $ between (string "[#") (string "#]") $ do
-    _ <- char ' ' <|> pure ' '
+    char ' ' <|> pure ' '
     bHead <- pHex
     bTail <- many $ try $ char ' ' *> pHex
-    _ <- char ' ' <|> pure ' '
+    char ' ' <|> pure ' '
     return $ fromString $ bHead : bTail
   where
     emptyBytes = between (string "[#") (string "#]") $ do
-        _ <- many $ char ' '
+        many $ char ' '
         pure $ ByteString.pack ""
     pHex = do
         d1 <- satisfy isHexDigit

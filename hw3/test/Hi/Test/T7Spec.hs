@@ -98,13 +98,13 @@ spec = do
           -- meve bang out of if to additionally test propogation
           [r|if(true, write("test/exec/write.test", encode-utf8("for sure"))!, write("test/exec/write.test", "oops leftmost")!) || read("test/exec/write.test")!|]
         `shouldBe` Ok [r|"for sure"|]
-    it "multiple-run" $ do
-      testEvalIO
-          [AllowTime]
-          [r|now!!|]
-        `shouldBe` EvalError HiErrorInvalidArgument
-      testEvalIO
-          [AllowRead]
-          [r|cwd!!|]
-        `shouldBe` EvalError HiErrorInvalidArgument
+    -- it "multiple-run" $ do
+    --   testEvalIO
+    --       [AllowTime]
+    --       [r|now!!|]
+    --     `shouldBe` EvalError HiErrorInvalidArgument
+    --   testEvalIO
+    --       [AllowRead]
+    --       [r|cwd!!|]
+    --     `shouldBe` EvalError HiErrorInvalidArgument
 #endif

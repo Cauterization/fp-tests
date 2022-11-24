@@ -25,6 +25,9 @@ import qualified Data.Sequence as Sequence
 
 type EvalT m a = ExceptT HiError m a
 
+instance HiMonad m => HiMonad (ExceptT HiError m) where
+    runAction = lift . runAction
+
 pattern FApp f args = HiExprApply (FExp f) args
 pattern LApp l args = HiExprApply (LExp l) args
 pattern BApp b args = HiExprApply (BExp b) args
@@ -54,7 +57,9 @@ evalT = \case
 
     HiExprValue val -> return val
 
-    HiExprRun 
+    HiExprRun exp -> evalT exp >>= \case
+        HiValueAction a -> runAction a 
+        _               -> throwError HiErrorInvalidArgument
 
     -- arithmetic
     FApp HiFunDiv       [l, r] -> (,) <$> evalT l <*> evalT r >>= \case 
@@ -231,6 +236,26 @@ evalT = \case
         _         -> throwError HiErrorInvalidArgument
 
     BApp b args -> evalContainer b args
+
+    -- actions 
+
+    FApp HiFunRead args -> traverse evalT args >>= \case
+        [SVal fp] -> return $ HiValueAction $ HiActionRead (Text.unpack fp)
+        _                 -> throwError HiErrorInvalidArgument
+
+    FApp HiFunWrite args -> traverse evalT args >>= \case
+        [SVal fp, BVal b] -> return $ HiValueAction $ HiActionWrite (Text.unpack fp) b
+        _                 -> throwError HiErrorInvalidArgument
+
+    FApp HiFunMkDir args -> traverse evalT args >>= \case
+        [SVal fp] -> return $ HiValueAction $ HiActionMkDir (Text.unpack fp)
+        _                 -> throwError HiErrorInvalidArgument
+
+    FApp HiFunChDir args -> traverse evalT args >>= \case
+        [SVal fp] -> return $ HiValueAction $ HiActionChDir (Text.unpack fp)
+        _                 -> throwError HiErrorInvalidArgument
+
+    -- FApp x y -> error "asd"
 
     FApp _ _             -> throwError HiErrorArityMismatch
 
