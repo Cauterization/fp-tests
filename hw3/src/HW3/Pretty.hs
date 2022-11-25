@@ -19,6 +19,7 @@ import Data.String
 import qualified Data.ByteString as ByteString
 import Data.Char
 import Data.List
+import qualified Data.Map as Map
 
 prettyValue :: HiValue -> Doc AnsiStyle
 prettyValue = \case
@@ -104,11 +105,10 @@ prettyValue = \case
                     
     HiValueTime t   -> "parse-time(" <> pretty (show (show t)) <> ")"
                     
-    -- HiValueDict d   -> case M.toList d of
-    --     []     -> "{ }"
-    --     (x:xs) -> mconcat ["{ ", foldl (\ini y -> ini <> ", " <> renderPair y) (renderPair x) $ xs, " }"]
-
-    x -> error $ show x  
+    HiValueDict d   -> case Map.toList d of
+        []     -> "{ }"
+        (x:xs) -> let render (a,b) = prettyValue a <> ": " <> prettyValue b
+                  in "{ " <> (foldl (\ini y -> ini <> ", " <> render y) (render x) $ xs) <> " }"
 
 renderByteString :: ByteString.ByteString -> Doc AnsiStyle
 renderByteString "" = "[# #]" 

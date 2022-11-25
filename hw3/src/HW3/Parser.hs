@@ -1,7 +1,4 @@
-module HW3.Parser
---   ( parse
---   )
-   where
+module HW3.Parser where
 
 import Control.Monad
 import Control.Monad.Combinators.Expr
@@ -13,11 +10,12 @@ import Numeric
 import Data.Function
 import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.Sequence as Sequence
-import HW3.Base -- (HiExpr)
+import HW3.Base
 import qualified Text.Megaparsec as Megaparsec
 import Text.Megaparsec hiding (parse)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer (symbol, scientific, charLiteral)
+import Data.List (intercalate, intersperse)
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
 parse s = Megaparsec.parse (pExpr <* eof) "" $ cleanSpaces False s
@@ -35,10 +33,10 @@ cleanSpaces _     ('[':'#':xs) = '[' : '#' : cleanSpaces True xs
 -- end of the bytes
 cleanSpaces _     ('#':']':xs) = '#' : ']' : cleanSpaces False xs
 
--- cleanSpaces False (' '   :xs) =     cleanSpaces False   xs
+-- spaces
+cleanSpaces False ('\\':'n':xs) = cleanSpaces False xs
+cleanSpaces False (' '     :xs) = cleanSpaces False xs
 
-cleanSpaces False ('\\' : 'n' :xs) = cleanSpaces False xs
-cleanSpaces False (' '   :xs) = cleanSpaces False xs
 cleanSpaces False (x     :xs) = x : cleanSpaces False xs
 cleanSpaces True  (x     :xs) = x : cleanSpaces True xs
 
@@ -49,12 +47,27 @@ pExpr = makeExprParser pTerm operatorTable
 
 pTerm :: Parser HiExpr
 pTerm = do
-    f    <- try (parens pExpr) <|> (HiExprValue <$> pValue) <|> pList
-    args <- many $ (flip HiExprApply <$> parens commaItems) <|> (HiExprRun <$ char '!')
+    f    <- choice 
+        [ parens pExpr
+        , HiExprValue <$> pValue
+        , pList
+        , pDict
+        ]
+    args <- many $ choice
+        [ fmap (flip HiExprApply) $ 
+                parens commaItems 
+            <|> char '.' *> (pure . HiExprValue . HiValueString . Text.pack . intercalate "-" <$> (((:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)) `sepBy1` char '-'))
+        , HiExprRun <$ char '!'
+        ]
     pure $ foldl (&) f args
 
 pList :: Parser HiExpr
-pList = fmap (HiExprApply (HiExprValue $ HiValueFunction HiFunList)) $ brackets commaItems
+pList = fmap (HiExprApply (HiExprValue $ HiValueFunction HiFunList)) $ between (char '[') (char ']') commaItems
+
+pDict :: Parser HiExpr
+pDict = fmap HiExprDict $ between (char '{') (char '}') $ pKV `sepBy` char ','
+    where
+        pKV = liftM2 (,) pExpr $ char ':' *> pExpr
 
 commaItems :: Parser [HiExpr]
 commaItems = pExpr `sepBy` char ','
@@ -63,34 +76,31 @@ commaItems = pExpr `sepBy` char ','
 
 operatorTable :: [[Operator Parser HiExpr]]
 operatorTable =
-    [   [ binary' InfixL "/"  HiFunDiv
-        , binary'  InfixL "*"  HiFunMul
+    [   [ binary InfixL "/"  HiFunDiv
+        , binary InfixL "*"  HiFunMul
         ]
         ,
-        [ binary'  InfixL "-"  HiFunSub
-        , binary'  InfixL "+"  HiFunAdd
+        [ binary InfixL "-"  HiFunSub
+        , binary InfixL "+"  HiFunAdd
         ]
         ,
-        [ binary'  InfixN "<=" HiFunNotGreaterThan
-        , binary'  InfixN ">=" HiFunNotLessThan
-        , binary'  InfixN "==" HiFunEquals
-        , binary'  InfixN "/=" HiFunNotEquals
-        , binary' InfixN "<"  HiFunLessThan
-        , binary' InfixN ">"  HiFunGreaterThan 
+        [ binary InfixN "<=" HiFunNotGreaterThan
+        , binary InfixN ">=" HiFunNotLessThan
+        , binary InfixN "==" HiFunEquals
+        , binary InfixN "/=" HiFunNotEquals
+        , binary InfixN "<"  HiFunLessThan
+        , binary InfixN ">"  HiFunGreaterThan 
         ]
         ,
-        [ binary'  InfixR "&&" HiFunAnd 
+        [ binary InfixR "&&" HiFunAnd 
         ]
         ,
-        [ binary'  InfixR "||" HiFunOr 
+        [ binary InfixR "||" HiFunOr 
         ]
     ]
 
--- binary :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
--- binary assoc name = mkBinary assoc (string name)
-
-binary' :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
-binary' assoc name = mkBinary assoc (try $ (string name) <* notFollowedBy (string "="))
+binary :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> String -> HiFun -> Operator Parser HiExpr
+binary assoc name = mkBinary assoc (try $ (string name) <* notFollowedBy (string "="))
 
 mkBinary :: (Parser (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr) -> Parser a -> HiFun -> Operator Parser HiExpr
 mkBinary assoc p f = assoc ((\a b -> HiExprApply (HiExprValue $ HiValueFunction f) [a, b]) <$ p)
@@ -155,7 +165,6 @@ pFun = HiValueFunction <$> choice
     , HiFunEquals         <$ string "equals"
 
     -- string and slices
-
     , HiFunLength        <$ string "length"
     , HiFunToUpper       <$ string "to-upper" 
     , HiFunToLower       <$ string "to-lower" 
@@ -163,13 +172,11 @@ pFun = HiValueFunction <$> choice
     , HiFunTrim          <$ string "trim" 
 
     -- lists and folds
-
     , HiFunList          <$ string "list"
     , HiFunRange         <$ string "range" 
     , HiFunFold          <$ string "fold"
 
     -- bytes
-
     , HiFunPackBytes     <$ string "pack-bytes"
     , HiFunUnpackBytes   <$ string "unpack-bytes"  
     , HiFunZip           <$ string "zip"
@@ -193,6 +200,12 @@ pFun = HiValueFunction <$> choice
 
     -- echo
     , HiFunEcho          <$ string "echo"
+
+    -- dicts
+    , HiFunCount         <$ string "count"
+    , HiFunKeys          <$ string "keys"
+    , HiFunValues        <$ string "values"
+    , HiFunInvert        <$ string "invert"
     ]
 
 pBool :: Parser HiValue
@@ -208,6 +221,3 @@ pNull = HiValueNull <$ string "null"
 
 parens :: Parser a -> Parser a
 parens = between (char '(') (char ')')
-
-brackets :: Parser a -> Parser a
-brackets = between (char '[') (char ']')

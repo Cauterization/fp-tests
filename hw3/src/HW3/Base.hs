@@ -9,6 +9,7 @@ import Data.Text (Text)
 import qualified Data.Time as Time
 import Data.Sequence
 import GHC.Generics
+import Data.Map (Map)
 
 data HiFun -- function names (e.g. div, sort, length, ...)
 
@@ -58,6 +59,11 @@ data HiFun -- function names (e.g. div, sort, length, ...)
 
   | HiFunEcho
 
+  | HiFunCount
+  | HiFunKeys
+  | HiFunValues
+  | HiFunInvert
+
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiValue -- values (numbers, booleans, strings, ...)
@@ -77,12 +83,15 @@ data HiValue -- values (numbers, booleans, strings, ...)
 
   | HiValueTime Time.UTCTime
 
+  | HiValueDict (Map HiValue HiValue)
+
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiExpr -- expressions (literals, function calls, ...)
   = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
   | HiExprRun HiExpr
+  | HiExprDict [(HiExpr, HiExpr)]
   deriving (Show, Eq, Ord, Generic, Serialise.Serialise)
 
 data HiError -- evaluation errors (invalid arguments, ...)

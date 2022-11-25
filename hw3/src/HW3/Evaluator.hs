@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module HW3.Evaluator where
 
@@ -25,6 +27,9 @@ import HW3.Utils
 import qualified Data.Sequence as Sequence
 import Text.Read (readMaybe)
 import qualified Data.Time as Time
+import qualified Data.Map as Map
+import qualified Data.List as List
+import Data.Tuple (swap)
 
 type EvalT m a = ExceptT HiError m a
 
@@ -34,12 +39,14 @@ instance HiMonad m => HiMonad (ExceptT HiError m) where
 pattern FApp f args = HiExprApply (FExp f) args
 pattern LApp l args = HiExprApply (LExp l) args
 pattern BApp b args = HiExprApply (BExp b) args
+pattern DApp d args = HiExprApply (DExp d) args
 
 pattern FExp f = HiExprValue (FVal f)
 pattern BExp b = HiExprValue (BVal b)
 pattern NExp n = HiExprValue (NVal n)
 pattern SExp s = HiExprValue (SVal s)
 pattern LExp l = HiExprValue (LValA l)
+pattern DExp d = HiExprValue (DVal d)
 
 pattern FVal  f = HiValueFunction f
 pattern NVal  n = HiValueNumber n
@@ -49,6 +56,7 @@ pattern LVal0            = HiValueList Sequence.Empty
 pattern LVal1 v1         = HiValueList (v1 Sequence.:<| Sequence.Empty)
 pattern LValN l         <- HiValueList l@(v1 Sequence.:<| (v2 Sequence.:<| rest))
 pattern LValA l          = HiValueList l
+pattern DVal d           = HiValueDict d
 
 eval :: HiMonad m => HiExpr -> m (Either HiError HiValue)
 eval = runExceptT . evalT
@@ -59,6 +67,7 @@ evalT = \case
     -- value
 
     HiExprValue val -> return val
+    HiExprDict d -> HiValueDict . Map.fromList <$> traverse (\(k,v) -> liftM2 (,) (evalT k) (evalT v) ) d
 
     -- run
 
@@ -289,7 +298,31 @@ evalT = \case
 
     FApp HiFunEcho args -> traverse evalT args >>= \case
         [HiValueString s] -> return $ HiValueAction $ HiActionEcho s
-        _                 -> throwError HiErrorInvalidArgument 
+        _                 -> throwError HiErrorInvalidArgument
+
+    -- dicts
+
+    DApp d args -> traverse evalT args >>= \case
+        [x] -> return $ maybe HiValueNull id $ Map.lookup x d
+        _   -> throwError HiErrorInvalidArgument 
+
+    FApp HiFunCount args -> traverse evalT args >>= \case
+        [SVal  t] -> return $ count t
+        [LValA l] -> return $ count l
+        [BVal  b] -> return $ count b
+        _               -> throwError HiErrorInvalidArgument 
+
+    FApp HiFunKeys args -> traverse evalT args >>= \case
+        [DVal d]        -> return $ HiValueList $ Sequence.fromList $ Map.keys d
+        _               -> throwError HiErrorInvalidArgument 
+
+    FApp HiFunValues args -> traverse evalT args >>= \case
+        [DVal d]        -> return $ HiValueList $ Sequence.fromList $ Map.elems d
+        _               -> throwError HiErrorInvalidArgument 
+
+    FApp HiFunInvert args -> traverse evalT args >>= \case
+        [DVal d]        -> return $ HiValueDict $ Map.map (HiValueList . Sequence.fromList) $ invertDict d
+        _               -> throwError HiErrorInvalidArgument 
 
     -- FApp x y -> error "asd"
 
@@ -299,7 +332,9 @@ evalT = \case
         f <- evalT exp
         evalT $ HiExprApply (HiExprValue f) args2
 
-    HiExprApply _ _ -> throwError HiErrorInvalidFunction
+    HiExprApply e@(HiExprDict d) args -> evalT e >>= evalT . (`HiExprApply` args) . HiExprValue
+    HiExprApply _ args -> throwError HiErrorInvalidFunction
+    
         
 evalEq :: HiMonad m => HiExpr -> HiExpr -> EvalT m Bool
 evalEq l r = (==) <$> evalT l <*> evalT r
@@ -318,6 +353,7 @@ class HiContainer c where
     cIndex  :: c -> Int -> HiValue 
     cTake   :: Int -> c -> c
     cDrop   :: Int -> c -> c
+    cToHiList :: c -> [HiValue]
 
 instance HiContainer Text.Text where
     cLength  = Text.length
@@ -325,6 +361,7 @@ instance HiContainer Text.Text where
     cIndex c = cPack . Text.singleton . Text.index c
     cTake    = Text.take 
     cDrop    = Text.drop
+    cToHiList = map (HiValueString . Text.singleton) . Text.unpack
 
 instance HiContainer (Sequence.Seq HiValue) where
     cLength = Sequence.length
@@ -332,6 +369,7 @@ instance HiContainer (Sequence.Seq HiValue) where
     cIndex  = Sequence.index
     cTake   = Sequence.take
     cDrop   = Sequence.drop
+    cToHiList = toList
 
 instance HiContainer C8ByteString.ByteString where
     cLength = C8ByteString.length
@@ -339,6 +377,7 @@ instance HiContainer C8ByteString.ByteString where
     cIndex i = HiValueNumber . fromIntegral . ord . C8ByteString.index i
     cTake   = C8ByteString.take
     cDrop   = C8ByteString.drop
+    cToHiList = map (HiValueNumber . fromIntegral . ord) . C8ByteString.unpack
 
 evalContainer :: (HiMonad m, HiContainer c) => c -> [HiExpr] -> EvalT m HiValue
 evalContainer c args = traverse evalT args >>= \case
@@ -368,13 +407,21 @@ evalContainer c args = traverse evalT args >>= \case
 
     _      -> throwError HiErrorInvalidArgument
 
--- unpackBytesHex :: ByteString.ByteString -> [Int]
--- unpackBytesHex = map ord . ByteString.unpack
+count :: HiContainer c => c -> HiValue
+count = HiValueDict 
+      . Map.fromList 
+      . map (\xs -> (head xs, HiValueNumber $ fromIntegral $ length xs))
+      . List.group 
+      . List.sort 
+      . cToHiList
 
--- unpackBytesDec :: C8ByteString.ByteString -> [Int]
--- unpackBytesDec = f . C8ByteString.unpack
---     where f (a:b:rest) = (fst $ head $ readHex [a,b]) : f rest
---           f _          = []
+-- invertDict :: Map.Map HiValue HiValue -> Map.Map HiValue HiValue 
+-- invertDict d = error $ show $ Map.map (\v -> Map.filter (== v) d) d
+
+invertDict :: (Show a, Show b, Eq b, Ord b, Ord a) => Map.Map a b -> Map.Map b [a]
+invertDict d = Map.fromList $ foldr f [] $ List.sort $ map swap $ Map.assocs d
+    where f   (v',k') []              = [(v',[k'])]
+          f   (v',k') ((v,ks):rest) = if v == v' then (v, ks<>[k']):rest else (v',[k']):(v,ks):rest
 
 compress :: C8ByteString.ByteString -> C8ByteString.ByteString
 compress = LByteString.toStrict 

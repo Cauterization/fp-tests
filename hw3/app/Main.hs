@@ -47,8 +47,5 @@ process inp = case parse inp of
 dummyRun :: HIO a -> IO a
 dummyRun m = runHIO m empty
 
-permRun :: HIO a -> IO a
-permRun m = runHIO m $ fromList [AllowRead, AllowWrite]
-
 instance HiMonad IO where
-    runAction a = (`runHIO` (fromList [AllowRead, AllowWrite])) $ runAction a
+    runAction a = (`runHIO` (fromList [AllowRead, AllowWrite, AllowTime])) $ runAction a
