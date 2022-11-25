@@ -415,13 +415,10 @@ count = HiValueDict
       . List.sort 
       . cToHiList
 
--- invertDict :: Map.Map HiValue HiValue -> Map.Map HiValue HiValue 
--- invertDict d = error $ show $ Map.map (\v -> Map.filter (== v) d) d
-
 invertDict :: (Show a, Show b, Eq b, Ord b, Ord a) => Map.Map a b -> Map.Map b [a]
-invertDict d = Map.fromList $ foldr f [] $ List.sort $ map swap $ Map.assocs d
-    where f   (v',k') []              = [(v',[k'])]
-          f   (v',k') ((v,ks):rest) = if v == v' then (v, ks<>[k']):rest else (v',[k']):(v,ks):rest
+invertDict d = Map.fromList $ map (fmap reverse) $ foldr f [] $ List.sort $ map swap $ Map.assocs d
+    where f   (v',k') []            = [(v',[k'])]
+          f   (v',k') ((v,ks):rest) = if v == v' then (v, k':ks):rest else (v',[k']):(v,ks):rest
 
 compress :: C8ByteString.ByteString -> C8ByteString.ByteString
 compress = LByteString.toStrict 

@@ -1,18 +1,26 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveAnyClass, DerivingVia, LambdaCase #-}
 module HW3.Action where
 
 import HW3.Base
-import Control.Exception
+    ( HiAction(..),
+      HiMonad(..),
+      HiValue(..) )
+import Control.Exception ( Exception, throw )
 import qualified Data.Set as Set
 import qualified Data.Sequence as Sequence
 import Control.Monad.Reader
+    ( MonadIO(..), forM_, filterM, unless, ReaderT(..) )
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import System.Directory
+    ( createDirectoryIfMissing,
+      doesDirectoryExist,
+      doesFileExist,
+      getCurrentDirectory,
+      listDirectory,
+      setCurrentDirectory )
 import qualified Data.ByteString as ByteString
-import System.IO
+import System.IO ( withFile, IOMode(WriteMode, ReadMode) )
 import Data.Functor (($>))
 import qualified Data.Time as Time
 import System.Random (randomRIO)
@@ -36,7 +44,6 @@ instance HiMonad HIO where
         
         HiActionCwd -> withRequirements [AllowRead] $ do
             cd <- getCurrentDirectory
-            -- (HiValueString . Text.pack . concat) <$> listDirectory cd
             return $ HiValueString $ Text.pack cd
 
         HiActionChDir d -> withRequirements [AllowRead] $ HiValueNull <$ do
@@ -51,7 +58,7 @@ instance HiMonad HIO where
                     Left _  -> return $ HiValueBytes bs 
                     Right s -> return $ HiValueString s
             else do
-                dirs <- filterM (doesDirectoryExist) <$> listDirectory f
+                dirs <- filterM doesDirectoryExist <$> listDirectory f
                 HiValueList . Sequence.fromList . map (HiValueString . Text.pack) <$> dirs
 
         HiActionWrite f bs -> withRequirements [AllowWrite] $ withFile f WriteMode $ 
@@ -65,10 +72,7 @@ instance HiMonad HIO where
 
         HiActionEcho s -> withRequirements [AllowWrite] $ HiValueNull <$ Text.putStrLn s
 
-        -- _ -> undefined
-
 withRequirements :: [HiPermission] -> IO a -> HIO a
-withRequirements perms action = HIO $ \allowed -> do
-    forM_ perms $ \p -> unless (p `Set.member` allowed) $ throw $ PermissionRequired p
+withRequirements perms action = HIO $ \allowedPerms -> do
+    forM_ perms $ \p -> unless (p `Set.member` allowedPerms) $ throw $ PermissionRequired p
     liftIO action
-

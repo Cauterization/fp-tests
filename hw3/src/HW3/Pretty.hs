@@ -1,24 +1,24 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, MultiWayIf, TypeApplications #-}
 
 module HW3.Pretty where
 
-import           HW3.Base
-import           HW3.Evaluator
-import           Prettyprinter 
-import           Prettyprinter.Render.Terminal 
+import HW3.Base
+    ( HiAction(..),
+      HiFun(..),
+      HiValue(..) )
+import Prettyprinter ( Doc, Pretty(pretty) ) 
+import Prettyprinter.Render.Terminal 
+    ( AnsiStyle
+    ) 
 import qualified Data.Text as Text
-import Data.Ratio
+import Data.Ratio ( denominator, numerator )
 import qualified Data.Sequence as Sequence
 import Data.Scientific
-import Data.Foldable
-import Numeric
-import Data.String
+    ( floatingOrInteger, fromRationalRepetendUnlimited )
+import Data.Foldable ( Foldable(toList) )
+import Numeric ( showFFloat, showHex )
+import Data.String ( IsString(fromString) )
 import qualified Data.ByteString as ByteString
-import Data.Char
-import Data.List
 import qualified Data.Map as Map
 
 prettyValue :: HiValue -> Doc AnsiStyle
@@ -28,17 +28,17 @@ prettyValue = \case
 
     HiValueBool False -> "false"
 
-    HiValueNumber num   -> case fromRationalRepetendUnlimited num of
+    HiValueNumber num   -> pretty $ case fromRationalRepetendUnlimited num of
         (n, Nothing) -> case floatingOrInteger @_ @Integer n of
-            Right i -> pretty i
-            Left f -> pretty $ showFFloat Nothing f ""
+            Right i -> show i
+            Left f -> showFFloat Nothing f ""
         _            -> let n = numerator num
                             d = denominator num
                             (q,r) = quotRem n d
                         in if
-            | abs n < abs d -> showDoc n <>  "/"  <> showDoc d
-            | n > 0         -> showDoc q <> " + " <> showDoc r       <> "/" <> showDoc (abs d)
-            | otherwise     -> showDoc q <> " - " <> showDoc (abs r) <> "/" <> showDoc (abs d)
+            | abs n < abs d -> show n <>  "/"  <> show d
+            | n > 0         -> show q <> " + " <> show r       <> "/" <> show (abs d)
+            | otherwise     -> show q <> " - " <> show (abs r) <> "/" <> show (abs d)
   
     HiValueFunction f -> case f of
         HiFunDiv            -> "div"       
@@ -78,10 +78,10 @@ prettyValue = \case
         HiFunParseTime      -> "parse-time"
         HiFunRand           -> "rand"
         HiFunEcho           -> "echo"
-        -- HiFunCount          -> "count"  
-        -- HiFunKeys           -> "keys" 
-        -- HiFunValues         -> "values"     
-        -- HiFunInvert         -> "invert"    
+        HiFunCount          -> "count"  
+        HiFunKeys           -> "keys" 
+        HiFunValues         -> "values"     
+        HiFunInvert         -> "invert"    
             
     HiValueNull       -> "null"
             
@@ -103,12 +103,12 @@ prettyValue = \case
         HiActionRand  a b   -> pretty $ "rand(" <> show a <> ", " <> show b <> ")"
         HiActionEcho  t     -> pretty $ "echo(" <> show t <> ")"
                     
-    HiValueTime t   -> "parse-time(" <> pretty (show (show t)) <> ")"
+    HiValueTime t   -> pretty $ "parse-time(" <> (show (show t)) <> ")"
                     
     HiValueDict d   -> case Map.toList d of
         []     -> "{ }"
         (x:xs) -> let render (a,b) = prettyValue a <> ": " <> prettyValue b
-                  in "{ " <> (foldl (\ini y -> ini <> ", " <> render y) (render x) $ xs) <> " }"
+                  in "{ " <> foldl (\ini y -> ini <> ", " <> render y) (render x) xs <> " }"
 
 renderByteString :: ByteString.ByteString -> Doc AnsiStyle
 renderByteString "" = "[# #]" 

@@ -4,13 +4,12 @@
 module HW3.Base where
 
 import qualified Codec.Serialise as Serialise
-import Data.ByteString (ByteString)
-import Data.Text (Text)
+import Data.ByteString ( ByteString )
+import Data.Text ( Text )
 import qualified Data.Time as Time
-import Data.Sequence
-import GHC.Generics
-import Data.Map (Map)
-
+import Data.Sequence ( Seq ) 
+import GHC.Generics ( Generic )
+import Data.Map ( Map ) 
 data HiFun -- function names (e.g. div, sort, length, ...)
 
   = HiFunDiv --p7 l
@@ -101,7 +100,7 @@ data HiError -- evaluation errors (invalid arguments, ...)
   | HiErrorDivideByZero
   deriving (Show, Eq, Ord)
 
-data HiAction =
+data HiAction = -- actions
     HiActionRead  FilePath
   | HiActionWrite FilePath ByteString
   | HiActionMkDir FilePath
