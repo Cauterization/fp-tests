@@ -18,7 +18,13 @@ import Text.Megaparsec.Char.Lexer (symbol, scientific, charLiteral)
 import Data.List (intercalate, intersperse)
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
-parse s = Megaparsec.parse (pExpr <* eof) "" $ cleanSpaces False s
+parse s = Megaparsec.parse (pExpr <* eof) "" s
+
+-- >>> parse "   div ( add   (    10      ,   15.1    )     ,    3   ) +       2      "
+-- Right (HiExprApply (HiExprValue (HiValueFunction HiFunAdd)) [HiExprApply (HiExprValue (HiValueFunction HiFunDiv)) [HiExprApply (HiExprValue (HiValueFunction HiFunAdd)) [HiExprValue (HiValueNumber (10 % 1)),HiExprValue (HiValueNumber (151 % 10))],HiExprValue (HiValueNumber (3 % 1))],HiExprValue (HiValueNumber (2 % 1))])
+
+-- >>> parse add(45  ,  -  15  )  "
+-- Left (ParseErrorBundle {bundleErrors = TrivialError 6 (Just (Tokens ('(' :| ""))) (fromList [Tokens ('&' :| "&"),Tokens ('*' :| ""),Tokens ('+' :| ""),Tokens ('-' :| ""),Tokens ('/' :| ""),Tokens ('/' :| "="),Tokens ('<' :| ""),Tokens ('<' :| "="),Tokens ('=' :| "="),Tokens ('>' :| ""),Tokens ('>' :| "="),Tokens ('|' :| "|"),EndOfInput]) :| [], bundlePosState = PosState {pstateInput = "   add(45  ,  -  15  )  ", pstateOffset = 0, pstateSourcePos = SourcePos {sourceName = "", sourceLine = Pos 1, sourceColumn = Pos 1}, pstateTabWidth = Pos 8, pstateLinePrefix = ""}})
 
 -- Bool here is flag that indicates that we are now parsing string/bytes values where spaces are important.
 cleanSpaces :: Bool -> String -> String
@@ -43,10 +49,11 @@ cleanSpaces True  (x     :xs) = x : cleanSpaces True xs
 type Parser = Parsec Void String
 
 pExpr :: Parser HiExpr
-pExpr = makeExprParser pTerm operatorTable
+pExpr = many (satisfy isSpace) *> makeExprParser pTerm operatorTable <* many (satisfy isSpace)
 
 pTerm :: Parser HiExpr
 pTerm = do
+    many (satisfy isSpace)
     f    <- choice 
         [ parens pExpr
         , HiExprValue <$> pValue
@@ -54,15 +61,15 @@ pTerm = do
         , pDict
         ]
     args <- many $ choice
-        [ fmap (flip HiExprApply) $ 
-                parens commaItems 
-            <|> char '.' *> (pure . HiExprValue . HiValueString . Text.pack . intercalate "-" <$> (((:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)) `sepBy1` char '-'))
+        [ try $ mSpace $ fmap (flip HiExprApply) $ parens commaItems 
+        , fmap (flip HiExprApply) $ char '.' *> (pure . HiExprValue . HiValueString . Text.pack . intercalate "-" <$> (((:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)) `sepBy1` char '-'))
         , HiExprRun <$ char '!'
         ]
+    many (satisfy isSpace)
     pure $ foldl (&) f args
 
 pList :: Parser HiExpr
-pList = fmap (HiExprApply (HiExprValue $ HiValueFunction HiFunList)) $ between (char '[') (char ']') commaItems
+pList = fmap (HiExprApply (HiExprValue $ HiValueFunction HiFunList)) $ between (char '[') (char ']') $ mSpace commaItems
 
 pDict :: Parser HiExpr
 pDict = fmap HiExprDict $ between (char '{') (char '}') $ pKV `sepBy` char ','
@@ -212,7 +219,7 @@ pBool :: Parser HiValue
 pBool = fmap HiValueBool $ False <$ string "false" <|> True <$ string "true"
 
 pNum :: Parser HiValue
-pNum = HiValueNumber . toRational <$> ((char '-' >> negate <$> scientific) <|> scientific)
+pNum = HiValueNumber . toRational <$> ((char '-' >> negate <$> mSpace scientific) <|> scientific)
 
 pNull :: Parser HiValue
 pNull = HiValueNull <$ string "null"
@@ -220,4 +227,7 @@ pNull = HiValueNull <$ string "null"
 -- Primitives
 
 parens :: Parser a -> Parser a
-parens = between (char '(') (char ')')
+parens p = between (char '(') (mSpace $ char ')') $ mSpace p
+
+mSpace :: Parser a -> Parser a
+mSpace = ((many $ satisfy isSpace) *>)
